@@ -7,26 +7,33 @@ addpath('./rocket_simulation');
 addpath('./GA');
 
 
-%/////////////////////////////////////////////////////////////////////////////
-%CONTROLES DEL PROYECTO
-%Para saber si hacer gráficas
-graficar = false;
-simulacion_grafica = true;
-
-generar_nuevos_parametros = false;
-% -True = ejecutar AG para nuevos parametros
-      max_generaciones = 10;
-      tam_poblacion = 50;
-% -False = leer un archivo de una simulacion previa
-      file_simulation_number = 3; %Número del archivo de simulación a leer 
-      file_type = '.txt';
 
 %/////////////////////////////////////////////////////////////////////////////
+%/////////////////////////////////////////////////////////////////////////////
+%Project controls explanation
+launch_site = [-3.6e6, 0]; %Given by the problem
+%graph: if true, the program creates graph to show the rocket's path
+%animation: if true, the program makes an animation of the interception of the rocket
+%new_parameters: if true, the program uses the genetic algorithm to calculate...
+                 %the launch parameters from scratch. I false it loads the...
+                 % previously computed data from a file.
+%max_generations denotes the maximum number of generations the genetic algorithm
+    %allowed to have.
+%population_size denotes the number of data sets per generation.
+%file_simulation_number denotes the number of the file to read in case new_parameters is false
+graph = true;
+animation = true;
+new_parameters = false;
+max_generations = 10;
+population_size = 50;
+file_simulation_number = 1;
+file_type = '.txt';
+%/////////////////////////////////////////////////////////////////////////////
 
-%Cargar la información de los satélites
+%Cargar la informaciï¿½n de los satï¿½lites
 load_satellite_info
 
-%Leer archivos de texto para la información capturada por los satélites
+%Leer archivos de texto para la informaciï¿½n capturada por los satï¿½lites
 Rocket_A_fp = fopen('Rocket_in_Sat_A.txt', 'r');
 fgets(Rocket_A_fp);
 Rocket_A = fscanf(Rocket_A_fp, '%f%f%f%f\n', [4, Inf])';
@@ -45,7 +52,7 @@ fclose(Rocket_C_fp);
 
 datos3d = {Rocket_A, Rocket_B, Rocket_C};
 
-%Reconstruir la posición del cohete en el espacio tridimencional.
+%Reconstruir la posiciï¿½n del cohete en el espacio tridimencional.
 xyz = posicion3D(datos3d, Satellites);
 tiempo = Rocket_A(:,1); %Todos traen los mismos valores de tiempo
 
@@ -59,15 +66,15 @@ polyfit_y = polyfit(tiempo, xyz(:,2), 1);
   
 %Ajustar un polinomio al eje Z
 polyfit_z = polyfit(tiempo, xyz(:,3), 4);
-  % Grado cuatro porque la simulación toma en cuenta más cosas que la mera
-  % aceleración
+  % Grado cuatro porque la simulaciï¿½n toma en cuenta mï¿½s cosas que la mera
+  % aceleraciï¿½n
 
-%Gráficas de la estimación del cohete con base en lo obtenido por los satélites
+%Grï¿½ficas de la estimaciï¿½n del cohete con base en lo obtenido por los satï¿½lites
     polyval_x = polyval(polyfit_x,tiempo);
     polyval_y = polyval(polyfit_y,tiempo);
     polyval_z = polyval(polyfit_z,tiempo);
     
-  if graficar
+  if graph
     figure(1);
     subplot(4,1,1)
     plot3(xyz(:,1), xyz(:,2), xyz(:,3), 'rx-', polyval_x, polyval_y, polyval_z, 'b--');
@@ -93,21 +100,21 @@ polyfit_z = polyfit(tiempo, xyz(:,3), 4);
       ylabel('z')
    endif
 
-% Dado que en los ejes X y Y son fáciles de modelar (hacen una recta), 
-% se puede simplificar la simulación convirtiéndola a dos dimensiones:
-% -La posición en esta recta
-  angulo_direccion_cohete = atan2(polyfit_y(1), polyfit_x(1));
+% Dado que en los ejes X y Y son fï¿½ciles de modelar (hacen una recta), 
+% se puede simplificar la simulaciï¿½n convirtiï¿½ndola a dos dimensiones:
+% -La posiciï¿½n en esta recta
+  angulo_direccion_cohete = sign(atan2(polyfit_y(1), polyfit_x(1)));
       %Se convierten los datos a este nuevo ajuste de una recta
       polyfit_x2d = [angulo_direccion_cohete, 1].*sqrt(polyfit_x.^2 + polyfit_y.^2);
 % -La altura (esencialmente el eje z)
   polyfit_y2d = polyfit_z;
 
   
-%Graficar el vuelo observado en modelo de dos dimensiones
+%graficar el vuelo observado en modelo de dos dimensiones
 polyval_x2d = polyval(polyfit_x2d, tiempo);
 polyval_y2d = polyval(polyfit_y2d, tiempo);
 
-if graficar
+if graph
 figure(2)
 subplot(1,1,1)
 plot(polyval_x2d, polyval_y2d, 'k--');
@@ -116,13 +123,13 @@ plot(polyval_x2d, polyval_y2d, 'k--');
   ylabel('altura');
 endif
 
-%Derivar para encontrar el tiempo de altura máxima
+%Derivar para encontrar el tiempo de altura mï¿½xima
 polyfit_dy2D_dt = [4*polyfit_y2d(1),3*polyfit_y2d(2),2*polyfit_y2d(3),polyfit_y2d(4)];
 dY_dt = @(t) polyval(polyfit_dy2D_dt, t);
 tiempo_maxima_altura = fzero(dY_dt, tiempo(end));
 
 
-%Se comienza a modelar la predicción del vuelo
+%Se comienza a modelar la predicciï¿½n del vuelo
 tiempo_prediccion = tiempo(end):(2*tiempo_maxima_altura);
 
 vuelo_prediccion_x = polyval(polyfit_x2d, tiempo_prediccion);
@@ -130,41 +137,40 @@ vuelo_prediccion_y = polyval(polyfit_y2d, tiempo_prediccion);
 vuelo_prediccion = [vuelo_prediccion_x; vuelo_prediccion_y]';
 
 
-%Ver qué parte de la predicción de vuelo no ha tocado el piso
+%Ver quï¿½ parte de la predicciï¿½n de vuelo no ha tocado el piso
 indices_mayores_0 = vuelo_prediccion_y>0;
 vuelo_prediccion_y = vuelo_prediccion_y(indices_mayores_0);
 vuelo_prediccion_x = vuelo_prediccion_x(indices_mayores_0);
 tiempo_prediccion = tiempo_prediccion(indices_mayores_0);
 vuelo_prediccion = [vuelo_prediccion_x; vuelo_prediccion_y]';
 
-%Graficar predicción
-if graficar
+%graph predicciï¿½n
+if graph
   figure(3)
   hold on
   plot(polyval_x2d, polyval_y2d, 'k-');
   plot(vuelo_prediccion_x, vuelo_prediccion_y, 'r--');
-  title('Predicción de vuelo');
+  title('Predicciï¿½n de vuelo');
   hold off
 endif
 
-%Optimizar los parámetros de un cohete interceptor
-if generar_nuevos_parametros
+%Optimizar los parï¿½metros de un cohete interceptor
+if new_parameters
   parametros_control_optimizados = alg_gen(vuelo_prediccion, tiempo(end));
   %Guardar resultados en un archivo de texto
-  guardarResultados(parametros_control_optimizados, max_generaciones, tam_poblacion);
+  guardarResultados(parametros_control_optimizados, max_generations, population_size);
 else
   %Leer resultados anteriores
   parametros_control_optimizados = leerResultados(file_simulation_number, file_type)';
 endif
   
 %Simular el vuelo del cohete interceptor
-sitio_lanzamiento = [-3.6e6, 0];
 trayectoria_interceptor = simulate_rocket(parametros_control_optimizados(1),...
-        parametros_control_optimizados(2),sitio_lanzamiento,...
+        parametros_control_optimizados(2),launch_site,...
         tiempo(end) + parametros_control_optimizados(3));
 
-%Mostrar intercepción
-if simulacion_grafica
+%Mostrar intercepciï¿½n
+if animation
   figure(4)
   rocket_interception_simulation(vuelo_prediccion,trayectoria_interceptor);
 endif

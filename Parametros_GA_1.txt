@@ -1,0 +1,5 @@
+Parametros_GA_1
+Max_Generaciones = 10
+Tamano_Poblacion = 50
+Parametros de control obtenidos:
+20.000000 -0.069672 8.000000
